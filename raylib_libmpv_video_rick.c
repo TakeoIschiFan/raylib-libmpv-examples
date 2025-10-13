@@ -9,29 +9,7 @@
 #include <string.h>
 
 /*
-    In this advanced example, we show how to achieve custom frame timings,
-   property observing and other advanced features using
-   MPV_RENDER_PARAM_ADVANCED_CONTROL. Please read the libmpv client.h, render.h
-   & render_gl.h  headers for more information.
-
-    - You have to define a render callback (on_mpv_render_updates). This
-   function can now be called even when there is no new frame.
-
-    - When on_mpv_render_updates is triggered, you are supposed to call
-   mpv_render_context_update ASAP to check (using a flag) if a frame is supposed to
-   be drawn
-
-    - Threading considerations if you are rendering on a seperate thread
-
-        a) only one of the mpv_render_* functions can be called at the same time
-        b) when calling mpv_render_* functions, the openGL context must be
-   current
-        c) *You cannot call any core MPV functions from a rendering thread*
-   (except those explicitly marked safe)
-        d) *You cannot call any render MPV
-   functions from a callback*
-
-    See the basic example for code left undocumented here.
+    This example draws the gif in the readme.
 */
 
 static bool render_event = false;
