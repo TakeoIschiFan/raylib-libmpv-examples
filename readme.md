@@ -6,9 +6,9 @@ Embed a video container in a Raylib project via libmpv. These examples are very 
 
 All examples are documented with comments.
 
-- The basic example renders a MPV video
-- The advanced example shows how to observe MPV properties, how to decouple the video and game render timings and how to use ``PV_RENDER_PARAM_ADVANCED_CONTROL`.
-- The _Rick_ examples draws the gif.
+- `raylib_libmpv_video_basic_example.c` renders a MPV video
+- `raylib_libmpv_video_advanced_example.c` shows how to observe MPV properties, how to decouple the video and game render timings and how to use `MPV_RENDER_PARAM_ADVANCED_CONTROL`.
+- `raylib_libmpv_video_rick.c` draws the example scene above.
 
 ## Issues
 
