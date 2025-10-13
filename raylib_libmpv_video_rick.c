@@ -2,6 +2,7 @@
 #include "mpv/render.h"
 #include "mpv/render_gl.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "rlgl.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -39,38 +40,7 @@ static double duration = 420.0;
 
 static void on_mpv_render_events(void* ctx) { render_event = true; }
 
-static void on_mpv_events(void* ctx) {
-    /* Note that blocking in this callback is bad form. The MPV header requests
-     * you keep these callback functions lean and poll events from a different thread (like
-     * we sketched for the on_mpv_render_updates function above), but this
-     * approach works well enough for a simple applicatin */
-    while (true) {
-        mpv_event* event = mpv_wait_event((mpv_handle*)ctx, 0);
-        if (event->event_id == MPV_EVENT_NONE) {
-            break;
-        }
-
-        switch (event->event_id) {
-            /* You receive MPV_EVENT_PROPERTY_CHANGE events for every mpv_observe_property you issue. */
-            case MPV_EVENT_PROPERTY_CHANGE: {
-                mpv_event_property* prop = (mpv_event_property*)event->data;
-                if (strcmp(prop->name, "time-pos") == 0) {
-                    if (prop->format == MPV_FORMAT_DOUBLE) {
-                        time_pos = *(double*)prop->data;
-                    }
-                }
-                if (strcmp(prop->name, "duration") == 0) {
-                    if (prop->format == MPV_FORMAT_DOUBLE) {
-                        duration = *(double*)prop->data;
-                    }
-                }
-            } break;
-            default: {
-                /* Ignore other events*/
-            }
-        };
-    }
-}
+static void on_mpv_events(void* ctx) {}
 
 static void* get_mpv_gl_proc_address(void* ctx, const char* name) {
     (void)ctx;
@@ -79,17 +49,22 @@ static void* get_mpv_gl_proc_address(void* ctx, const char* name) {
 
 int main(void) {
 
-    const char* videoPath = "./test.mp4";
+    const char* videoPath = "./rick.mp4";
     const int screenWidth = 1280;
     const int screenHeight = 720;
+    const int videoWidth = 192;
+    const int videoHeight = 144;
+
+    Vector2 rickPos = {((float)screenWidth / 2) - ((float)videoWidth / 2),
+                       ((float)screenHeight / 2) - ((float)videoHeight / 2)};
+    Vector2 rickVel = {3, 3};
 
     InitWindow(screenWidth, screenHeight, "Raylib + MPV");
     rlDisableBackfaceCulling();
 
-    /* Uncoupling the video and game frame rate, so set a game frame rate here */
-    SetTargetFPS(240);
+    SetTargetFPS(60);
 
-    RenderTexture2D mpv_tex = LoadRenderTexture(screenWidth, screenHeight);
+    RenderTexture2D mpv_tex = LoadRenderTexture(videoWidth, videoHeight);
 
     mpv_handle* mpv_ctx = mpv_create();
     if (!mpv_ctx) {
@@ -100,10 +75,8 @@ int main(void) {
 
     mpv_set_option_string(mpv_ctx, "vo", "libmpv");
     mpv_set_option_string(mpv_ctx, "hwdec", "auto");
-    mpv_set_option_string(mpv_ctx, "vd-lavc-hdr",
-                          "yes"); // direct rendering, possible extra performance
-    mpv_set_option_string(mpv_ctx, "video-timing-offset",
-                          "0"); // audio video timing, we will time frames manually
+    mpv_set_option_string(mpv_ctx, "vd-lavc-hdr", "yes");
+    mpv_set_option_string(mpv_ctx, "video-timing-offset", "0");
     mpv_set_option_string(mpv_ctx, "msg-level", "all=v");
     mpv_set_option_string(mpv_ctx, "terminal", "yes");
 
@@ -114,10 +87,6 @@ int main(void) {
         CloseWindow();
         return -1;
     }
-
-    /* Observe the duration and time-pos properties, we will use these to draw a progress bar */
-    mpv_observe_property(mpv_ctx, 0, "duration", MPV_FORMAT_DOUBLE);
-    mpv_observe_property(mpv_ctx, 0, "time-pos", MPV_FORMAT_DOUBLE);
 
     mpv_opengl_init_params gl_init = {
         .get_proc_address = get_mpv_gl_proc_address,
@@ -143,22 +112,37 @@ int main(void) {
     mpv_set_wakeup_callback(mpv_ctx, on_mpv_events, mpv_ctx);
 
     const char* cmd[] = {"loadfile", videoPath, NULL};
-    /* async now required, as explained above */
     mpv_command_async(mpv_ctx, 0, cmd);
 
     while (!WindowShouldClose()) {
+
+        // check for collisions with walls
+        if (rickPos.y <= 0) { // top
+            rickVel.y *= -1;
+        }
+        if (rickPos.y >= screenHeight - videoHeight) { // bottom
+            rickVel.y *= -1;
+        }
+        if (rickPos.x <= 0) { // left
+            rickVel.x *= -1;
+        }
+        if (rickPos.x >= screenWidth - videoWidth) { // right
+            rickVel.x *= -1;
+        }
+
+        // updating at fixed times so no need for a deltatime
+        rickPos = Vector2Add(rickPos, rickVel);
+
         if (render_event) {
             render_event = false;
 
-            /* Call mpv_render_context_update and only render when the
-             * MPV_RENDER_UPDATE_FRAME flag is set */
             if (mpv_render_context_update(mpv_render_ctx) & MPV_RENDER_UPDATE_FRAME) {
                 mpv_opengl_fbo mpv_fbo = {
                     .fbo = mpv_tex.id,
-                    .w = screenWidth,
-                    .h = screenHeight,
+                    .w = videoWidth,
+                    .h = videoHeight,
                 };
-                int flip_y = 0;
+                int flip_y = 1;
                 mpv_render_param render_params[] = {
                     {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo}, {MPV_RENDER_PARAM_FLIP_Y, &flip_y}, {0}};
 
@@ -166,24 +150,11 @@ int main(void) {
                 rlViewport(0, 0, screenWidth, screenHeight);
             }
         }
-
         BeginDrawing();
-        ClearBackground(RAYWHITE);
-
-        DrawTextureRec(mpv_tex.texture, (Rectangle){0.f, 0.f, screenWidth, screenHeight}, (Vector2){0, 0}, WHITE);
-        /* Draw a progress bar using the properties we are observing */
-        if (duration > 0.0) {
-            float progress = (float)(time_pos / duration);
-            float barHeight = 8.0f;
-            float barWidth = screenWidth * progress;
-
-            DrawRectangle(0, screenHeight - barHeight, screenWidth, barHeight, GRAY);
-            DrawRectangle(0, screenHeight - barHeight, barWidth, barHeight, SKYBLUE);
-        }
-
+        ClearBackground(SKYBLUE);
+        DrawTextureRec(mpv_tex.texture, (Rectangle){0.f, 0.f, videoWidth, -1.f * videoHeight}, rickPos, WHITE);
         EndDrawing();
 
-        /* Report a frame to MPV, supposedly this can help with timing */
         mpv_render_context_report_swap(mpv_render_ctx);
     }
 

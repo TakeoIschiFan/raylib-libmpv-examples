@@ -106,6 +106,7 @@ int main(void) {
             {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo}, {MPV_RENDER_PARAM_FLIP_Y, &flip_y}, {0}};
 
         mpv_render_context_render(mpv_render_ctx, render_params);
+        rlViewport(0, 0, screenWidth, screenHeight);
 
         BeginDrawing();
         // drawing
