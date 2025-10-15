@@ -107,6 +107,7 @@ int main(void) {
 
         mpv_render_context_render(mpv_render_ctx, render_params);
         rlViewport(0, 0, screenWidth, screenHeight);
+        rlEnableColorBlend();
 
         BeginDrawing();
         // drawing

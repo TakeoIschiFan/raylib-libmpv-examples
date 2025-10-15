@@ -34,8 +34,8 @@
 */
 
 static bool render_event = false;
-static double time_pos = 69.0;
-static double duration = 420.0;
+static double time_pos = 0.0;
+static double duration = 0.0;
 
 static void on_mpv_render_events(void* ctx) { render_event = true; }
 
@@ -164,6 +164,7 @@ int main(void) {
 
                 mpv_render_context_render(mpv_render_ctx, render_params);
                 rlViewport(0, 0, screenWidth, screenHeight);
+                rlEnableColorBlend();
             }
         }
 

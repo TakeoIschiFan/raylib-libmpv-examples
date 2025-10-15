@@ -15,7 +15,8 @@ All examples are documented with comments.
 Raylib manages its own openGL state via its `rlgl.h` backend. The MPV renderer is opaque and does alter some of that openGL state, so some unexpected rendering artifacts could occur, which needs to be checked. So far I have found:
 
 - Disable back-face culling with `rlDisableBackfaceCulling()` to get MPV to render to a custom FBO at all.
-- Reset the viewport after every mpv draw call with `rlViewport()`.
+- Reset the viewport after every mpv draw call with `rlViewport()`
+- Re-enable blending after every mpv draw call with `rlEnableColorBlend()`
 
 ## Building
 
